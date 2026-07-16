@@ -374,6 +374,9 @@ export function Gantt(props: GanttProps): JSX.Element {
     (id: string | null) => {
       setSelectedId(id);
       setSelectedLinkId(null);
+      // selecting a task opens/updates the edit dialog;
+      // clicking empty space closes it
+      setEditorId(id);
       onSelect?.(id);
     },
     [onSelect],
@@ -621,6 +624,7 @@ export function Gantt(props: GanttProps): JSX.Element {
       </div>
       {editorTask && (
         <EditForm
+          key={editorTask.id}
           task={editorTask}
           links={editorLinks}
           onSave={(t) => {

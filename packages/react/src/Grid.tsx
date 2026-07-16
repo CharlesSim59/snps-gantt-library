@@ -120,7 +120,7 @@ export function Grid(props: GridProps): JSX.Element {
           display: "flex",
           alignItems: "stretch",
           background: selected
-            ? "rgba(74,137,220,0.40)"
+            ? "rgba(74,137,220,0.25)"
             : related
               ? "rgba(74,137,220,0.22)"
               : undefined,

@@ -56,12 +56,16 @@ export const COLORS = {
   headerLine: "#d8d8e2",
   weekend: "#f6f6fa",
   bar: "#4a89dc",
+  barEmph: "#1c4e9e",
   barProgress: "#2f6bc4",
+  barProgressEmph: "#123c7d",
   summary: "#5a5a72",
   summaryProgress: "#2e2e42",
+  summaryEmph: "#35354a",
   milestone: "#c2529b",
+  milestoneEmph: "#8d3a72",
   selected: "#1c4e9e",
-  selectedRow: "rgba(74,137,220,0.40)",
+  selectedRow: "rgba(74,137,220,0.25)",
   relatedRow: "rgba(74,137,220,0.22)",
   link: "#9aa0b4",
   today: "#e8590c",
@@ -98,6 +102,8 @@ function drawBar(ctx: CanvasRenderingContext2D, v: View, task: Task, y: number, 
   const by = y + pad;
   const type = task.type ?? "task";
   const selected = task.id === v.selectedId;
+  // while the edit dialog is open, the dialog task gets the dark variant
+  const emphasized = !ghost && selected && v.relatedIds !== null;
 
   if (type === "milestone") {
     const c = y + v.rowHeight / 2;
@@ -108,7 +114,7 @@ function drawBar(ctx: CanvasRenderingContext2D, v: View, task: Task, y: number, 
     ctx.lineTo(bx, c + r);
     ctx.lineTo(bx - r, c);
     ctx.closePath();
-    ctx.fillStyle = ghost ? COLORS.ghost : COLORS.milestone;
+    ctx.fillStyle = ghost ? COLORS.ghost : emphasized ? COLORS.milestoneEmph : COLORS.milestone;
     ctx.fill();
     if (selected) {
       ctx.strokeStyle = COLORS.selected;
@@ -126,14 +132,14 @@ function drawBar(ctx: CanvasRenderingContext2D, v: View, task: Task, y: number, 
 
   if (type === "summary") {
     const sh = Math.max(6, h - 8);
-    ctx.fillStyle = ghost ? COLORS.ghost : COLORS.summary;
+    ctx.fillStyle = ghost ? COLORS.ghost : emphasized ? COLORS.summaryEmph : COLORS.summary;
     ctx.fillRect(bx, by, bw, sh);
     const sProgress = task.progress ?? 0;
     if (!ghost && sProgress > 0) {
       ctx.fillStyle = COLORS.summaryProgress;
       ctx.fillRect(bx, by, bw * Math.min(1, sProgress), sh);
     }
-    ctx.fillStyle = ghost ? COLORS.ghost : COLORS.summary;
+    ctx.fillStyle = ghost ? COLORS.ghost : emphasized ? COLORS.summaryEmph : COLORS.summary;
     // end caps
     ctx.beginPath();
     ctx.moveTo(bx, by + sh);
@@ -148,13 +154,13 @@ function drawBar(ctx: CanvasRenderingContext2D, v: View, task: Task, y: number, 
   } else {
     ctx.beginPath();
     ctx.roundRect(bx, by, bw, h, 3);
-    ctx.fillStyle = ghost ? COLORS.ghost : COLORS.bar;
+    ctx.fillStyle = ghost ? COLORS.ghost : emphasized ? COLORS.barEmph : COLORS.bar;
     ctx.fill();
     const progress = task.progress ?? 0;
     if (!ghost && progress > 0) {
       ctx.beginPath();
       ctx.roundRect(bx, by, bw * Math.min(1, progress), h, 3);
-      ctx.fillStyle = COLORS.barProgress;
+      ctx.fillStyle = emphasized ? COLORS.barProgressEmph : COLORS.barProgress;
       ctx.fill();
     }
   }
@@ -330,18 +336,14 @@ export function draw(ctx: CanvasRenderingContext2D, v: View): void {
   }
   ctx.stroke();
 
-  // highlight: strong tint on the selected row; when the edit dialog is
-  // open (relatedIds set), tint + accent the task's whole tree
-  if (v.selectedId !== null || v.relatedIds !== null) {
-    for (let i = first; i <= last; i++) {
-      const row = v.rows[i];
-      if (!row) continue;
-      const id = row.task.id;
-      const isSelected = id === v.selectedId;
-      const isRelated = !isSelected && !!v.relatedIds?.has(id);
-      if (!isSelected && !isRelated) continue;
-      const y = rowTop(v, i);
-      ctx.fillStyle = isSelected ? COLORS.selectedRow : COLORS.relatedRow;
+  // selection row tint (only while the edit dialog is closed — when it is
+  // open, the bars carry the highlight: dark selected bar, full-color tree,
+  // washed-out everything else, per the reference design)
+  if (v.relatedIds === null && v.selectedId !== null) {
+    const si = v.rowIdx.get(v.selectedId);
+    if (si !== undefined && si >= first && si <= last) {
+      const y = rowTop(v, si);
+      ctx.fillStyle = COLORS.selectedRow;
       ctx.fillRect(0, y, v.viewW, v.rowHeight);
       ctx.fillStyle = COLORS.selected;
       ctx.fillRect(0, y, 3, v.rowHeight);
