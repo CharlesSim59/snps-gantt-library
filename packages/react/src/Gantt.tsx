@@ -6,6 +6,7 @@ import {
   floorToDay,
   formatDateUTC,
   indexTasks,
+  relatedTaskIds,
   rowIndexById,
   visibleRows,
   xToDate,
@@ -15,6 +16,7 @@ import {
   type TimeScale,
   type ZoomLevel,
 } from "@snps/gantt-core";
+
 import {
   useCallback,
   useEffect,
@@ -25,6 +27,7 @@ import {
   type CSSProperties,
   type PointerEvent as ReactPointerEvent,
 } from "react";
+
 import { barBox, draw, visibleRowRange, type DragGhost, type LinkGhost, type View } from "./draw";
 import { EditForm } from "./EditForm";
 import { Grid, type ColumnId, type ColumnWidths, type SortState } from "./Grid";
@@ -165,10 +168,15 @@ export function Gantt(props: GanttProps): JSX.Element {
   const [scroll, setScroll] = useState({ x: 0, y: 0 });
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedLinkId, setSelectedLinkId] = useState<string | null>(null);
+  const [editorId, setEditorId] = useState<string | null>(null);
+  // tree spotlight only while the edit dialog is open
+  const relatedIds = useMemo(
+    () => (editorId ? relatedTaskIds(index, editorId) : null),
+    [editorId, index],
+  );
   const [hover, setHover] = useState<{ id: string | null; cursor: string }>({ id: null, cursor: "default" });
   const [ghost, setGhost] = useState<DragGhost | null>(null);
   const [linkGhost, setLinkGhost] = useState<LinkGhost | null>(null);
-  const [editorId, setEditorId] = useState<string | null>(null);
 
   const dragRef = useRef<DragInfo | null>(null);
   const scrollRafRef = useRef(0);
@@ -223,6 +231,7 @@ export function Gantt(props: GanttProps): JSX.Element {
       headerH: headerHeight,
       selectedId,
       selectedLinkId,
+      relatedIds,
       hoverId: hover.id,
       drag: ghost,
       linkGhost,
@@ -576,6 +585,7 @@ export function Gantt(props: GanttProps): JSX.Element {
         sort={sort}
         filter={filterText}
         selectedId={selectedId}
+        relatedIds={relatedIds}
         collapsed={effectiveCollapsed}
         onToggle={toggleCollapse}
         onSelect={select}

@@ -41,6 +41,8 @@ export interface View {
   headerH: number;
   selectedId: string | null;
   selectedLinkId: string | null;
+  /** the selected task's tree (whole project subtree), highlighted */
+  relatedIds: ReadonlySet<string> | null;
   hoverId: string | null;
   drag: DragGhost | null;
   linkGhost: LinkGhost | null;
@@ -59,7 +61,8 @@ export const COLORS = {
   summaryProgress: "#2e2e42",
   milestone: "#c2529b",
   selected: "#1c4e9e",
-  selectedRow: "rgba(74,137,220,0.08)",
+  selectedRow: "rgba(74,137,220,0.40)",
+  relatedRow: "rgba(74,137,220,0.22)",
   link: "#9aa0b4",
   today: "#e8590c",
   text: "#33334a",
@@ -202,8 +205,12 @@ function drawBar(ctx: CanvasRenderingContext2D, v: View, task: Task, y: number, 
 
 function drawLinks(ctx: CanvasRenderingContext2D, v: View, first: number, last: number): void {
   const pad = 30;
+  const spotlight = v.relatedIds !== null;
   for (const link of v.links) {
     const isSelected = link.id === v.selectedLinkId;
+    const inTree =
+      !spotlight || (v.relatedIds!.has(link.sourceId) && v.relatedIds!.has(link.targetId));
+    ctx.globalAlpha = isSelected || inTree ? 1 : 0.2;
     ctx.strokeStyle = isSelected ? COLORS.selected : COLORS.link;
     ctx.fillStyle = isSelected ? COLORS.selected : COLORS.link;
     ctx.lineWidth = isSelected ? 2 : 1.2;
@@ -243,6 +250,7 @@ function drawLinks(ctx: CanvasRenderingContext2D, v: View, first: number, last: 
     ctx.closePath();
     ctx.fill();
   }
+  ctx.globalAlpha = 1;
 }
 
 function drawHeader(ctx: CanvasRenderingContext2D, v: View): void {
@@ -322,24 +330,37 @@ export function draw(ctx: CanvasRenderingContext2D, v: View): void {
   }
   ctx.stroke();
 
-  // selected row highlight
-  if (v.selectedId !== null) {
-    const si = v.rowIdx.get(v.selectedId);
-    if (si !== undefined && si >= first && si <= last) {
-      ctx.fillStyle = COLORS.selectedRow;
-      ctx.fillRect(0, rowTop(v, si), v.viewW, v.rowHeight);
+  // highlight: strong tint on the selected row; when the edit dialog is
+  // open (relatedIds set), tint + accent the task's whole tree
+  if (v.selectedId !== null || v.relatedIds !== null) {
+    for (let i = first; i <= last; i++) {
+      const row = v.rows[i];
+      if (!row) continue;
+      const id = row.task.id;
+      const isSelected = id === v.selectedId;
+      const isRelated = !isSelected && !!v.relatedIds?.has(id);
+      if (!isSelected && !isRelated) continue;
+      const y = rowTop(v, i);
+      ctx.fillStyle = isSelected ? COLORS.selectedRow : COLORS.relatedRow;
+      ctx.fillRect(0, y, v.viewW, v.rowHeight);
+      ctx.fillStyle = COLORS.selected;
+      ctx.fillRect(0, y, 3, v.rowHeight);
     }
   }
 
   drawLinks(ctx, v, first, last);
 
-  // bars
+  // bars — while the edit dialog is open, everything outside the tree dims
+  const spotlight = v.relatedIds !== null;
   for (let i = first; i <= last; i++) {
     const row = v.rows[i];
     if (!row) continue;
     if (v.drag && v.drag.taskId === row.task.id) continue; // ghost drawn instead
+    const inTree = !spotlight || v.relatedIds!.has(row.task.id);
+    ctx.globalAlpha = inTree ? 1 : 0.25;
     drawBar(ctx, v, row.task, rowTop(v, i));
   }
+  ctx.globalAlpha = 1;
 
   // drag ghost
   if (v.drag) {

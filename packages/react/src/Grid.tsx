@@ -19,6 +19,8 @@ export interface GridProps {
   sort: SortState | null;
   filter: string;
   selectedId: string | null;
+  /** the selected task's tree (whole project subtree), highlighted */
+  relatedIds: ReadonlySet<string> | null;
   collapsed: ReadonlySet<string>;
   onToggle: (id: string) => void;
   onSelect: (id: string) => void;
@@ -91,7 +93,7 @@ function ResizeHandle({
 export function Grid(props: GridProps): JSX.Element {
   const {
     rows, first, last, scrollY, rowHeight, headerH, widths,
-    sort, filter, selectedId, collapsed,
+    sort, filter, selectedId, relatedIds, collapsed,
     onToggle, onSelect, onOpenEditor, onSortToggle, onFilterChange, onResizeCol, onAdd,
   } = props;
   const width = widths.name + widths.start + widths.end + widths.duration;
@@ -103,6 +105,7 @@ export function Grid(props: GridProps): JSX.Element {
     if (!row) continue;
     const t = row.task;
     const selected = t.id === selectedId;
+    const related = !selected && !!relatedIds?.has(t.id);
     items.push(
       <div
         key={t.id}
@@ -116,7 +119,13 @@ export function Grid(props: GridProps): JSX.Element {
           height: rowHeight,
           display: "flex",
           alignItems: "stretch",
-          background: selected ? "rgba(74,137,220,0.08)" : undefined,
+          background: selected
+            ? "rgba(74,137,220,0.40)"
+            : related
+              ? "rgba(74,137,220,0.22)"
+              : undefined,
+          borderLeft: selected || related ? "3px solid #1c4e9e" : "3px solid transparent",
+          opacity: relatedIds !== null && !selected && !related ? 0.45 : undefined,
           borderBottom: "1px solid #f0f0f5",
           cursor: "pointer",
           boxSizing: "border-box",
